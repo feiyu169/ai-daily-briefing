@@ -1,0 +1,151 @@
+# 🚀 AI 每日投研简报 (AI Daily Briefing)
+
+自动采集 AI 领域多源信息，清洗去重后由 LLM 生成结构化日报，每天定时推送到飞书。
+
+## 架构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  每天 09:00 自动触发                                     │
+│       │                                                  │
+│       ▼                                                  │
+│  Python 采集脚本 (~30s)                                  │
+│  ├─ Exa API: 21组语义搜索 (EN+CN+官方+学术+讨论)         │
+│  ├─ GitHub: Search API + Trending                        │
+│  └─ 清洗: URL去重 + 语义去重 + 自动分类 + 趋势追踪       │
+│       │                                                  │
+│       ▼                                                  │
+│  LLM 分析+报告生成 (~2min)                               │
+│  ├─ 6维度: 趋势/情绪/热点/关联/项目/洞察                 │
+│  └─ 按模板输出 Markdown                                  │
+│       │                                                  │
+│       ▼                                                  │
+│  飞书推送                                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 数据源覆盖
+
+| 信息源 | 采集方式 | 条数/天 | 说明 |
+|--------|----------|---------|------|
+| 英文 AI 新闻 | Exa 语义搜索 (7组) | ~40条 | 通用AI/LLM/芯片/融资/开源/政策/生成式 |
+| 中文 AI 生态 | Exa 语义搜索 (4组) | ~25条 | 国产大模型/融资/算力/Agent/36氪等 |
+| 大厂官方动态 | Exa 语义搜索 (3组) | ~12条 | OpenAI/Anthropic/Google/Meta/Microsoft |
+| 学术前沿 | Exa 语义搜索 (2组) | ~8条 | arXiv 论文/中文研究 |
+| HN/Reddit 讨论 | Exa 间接采集 (3组) | ~12条 | 绕过 WSL 网络限制 |
+| GitHub | Search API (5组) | ~9条 | 最近3天新建 AI repo |
+| GitHub Trending | Exa 补充 (2组) | ~12条 | 今日 star 暴涨的 repo |
+
+## 清洗流水线
+
+```
+原始数据 ~109条
+  → URL 模式过滤 (huggingface datasets/models, kaggle, leetcode)
+  → URL 精确去重 + 跨日历史去重 (7天窗口)
+  → Jaccard 语义去重 (阈值 0.35，跨域名保留不同视角)
+  → 自动分类 (5类别: 融资/并购 | 产品发布 | 技术突破 | 政策/监管 | 行业动态)
+  → 趋势关键词提取 + momentum 追踪 (3天窗口)
+输出 ~97条结构化数据
+```
+
+## 快速开始
+
+### 1. 安装依赖
+
+```bash
+pip install exa-py
+# 需要 Python 3.10+ (exa-py 使用了 typing.Annotated)
+```
+
+### 2. 配置环境变量
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入你的 Exa API Key、飞书凭据等
+```
+
+### 3. 在飞书开放平台创建应用
+
+1. 打开 https://open.feishu.cn/
+2. 创建自建应用 → 启用"机器人"能力
+3. 开通权限: `im:message:send`
+4. 获取 App ID 和 App Secret → 填入 .env
+
+### 4. 创建 Cron Job (Hermes Agent)
+
+```bash
+# 如果使用 Hermes Agent:
+hermes cron create "0 9 * * *"   --name "AI 每日投研简报"   --script ai_daily_collector.py   --prompt "$(cat ai_report_prompt.md)"   --deliver feishu:oc_your_chat_id
+```
+
+### 5. 手动测试
+
+```bash
+# 直接运行采集脚本测试
+python3 ai_daily_collector.py
+
+# 触发一次 cron job 测试全链路
+hermes cron run <job_id>
+```
+
+## 报告模板
+
+报告包含以下章节:
+
+- **📊 市场脉搏**: 情绪评分 + 关键事件 + 趋势 (延续/新出现)
+- **🔥 今日热点**: 5-8条重要新闻 (来源/分类/摘要/要点/链接)
+- **💎 值得关注**: 3-5个重点项目 (亮点/风险)
+- **🔗 跨平台关联**: 跨源对比 + 因果链 + 共识分歧
+- **💡 今日思考**: 基于全天数据的洞察
+
+完整模板见 `ai_report_prompt.md`。
+
+## 版本管理
+
+```
+versions/
+├── ai_daily_collector_v1.0.py    # v1.0 采集脚本快照
+└── ai_report_prompt_v1.0.md      # v1.0 报告模板快照
+```
+
+每个版本的快照保存在 `versions/` 目录，支持回滚。版本号规则: `v{major}.{minor}`。
+
+## 文件结构
+
+```
+ai-daily-briefing/
+├── README.md                      # 本文件
+├── .env.example                   # 环境变量模板
+├── .gitignore                     # Git 排除规则
+├── ai_daily_collector.py          # 数据采集脚本 (主脚本)
+├── ai_report_prompt.md            # LLM 分析 prompt 模板
+└── versions/                      # 版本快照
+    ├── ai_daily_collector_v1.0.py
+    └── ai_report_prompt_v1.0.md
+```
+
+## 技术细节
+
+- **语言**: Python 3.10+
+- **核心依赖**: exa-py, urllib (标准库)
+- **采集耗时**: ~30s
+- **LLM 分析**: 单次调用，不拆多 Agent (93条数据上下文足够)
+- **推送**: 飞书 WebSocket 长连接 (无需公网 IP)
+- **去重**: 三重 (URL精确 + 标题Jaccard语义 + 跨日历史)
+- **分类**: 基于关键词规则的 5 类自动分类
+- **趋势追踪**: 3天窗口的关键词频次，区分延续性/新出现趋势
+
+## 成本
+
+| 项目 | 免费额度 | 日常消耗/天 |
+|------|----------|------------|
+| Exa API | 1000次/月 | ~24次 |
+| LLM 推理 | 取决于 provider | ~2k tokens |
+| 飞书 Bot | 免费 | 发消息 |
+| GitHub API | 10次/分(未认证) | ~5次 |
+
+日常运行成本接近 $0。
+
+## License
+
+MIT
