@@ -10,7 +10,6 @@
     filtered = dedup_and_filter(all_data, url_history)
 """
 
-import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Set
 

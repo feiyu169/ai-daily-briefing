@@ -4,11 +4,8 @@ API 配额监控
 监控 Exa API 使用量，提供降级机制
 """
 
-import os
-import json
-import time
-from datetime import datetime, timedelta
-from typing import Dict, Optional
+from datetime import datetime
+from typing import Dict
 
 from .logger import logger
 from .file_utils import load_json_file, save_json_file

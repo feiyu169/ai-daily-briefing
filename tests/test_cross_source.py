@@ -4,7 +4,6 @@
 测试 cross_source_cluster 函数的聚类准确性、动态阈值、关键词权重和跨域保留。
 """
 
-from typing import Any, Dict, List
 
 from src.processors.cross_source import (
     cross_source_cluster,

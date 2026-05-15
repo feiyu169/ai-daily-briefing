@@ -104,7 +104,7 @@ def collect_exa() -> List[Dict[str, Any]]:
     get_collector_config()
 
     # --- API 配额检查 ---
-    from src.utils.quota import check_quota, get_degradation_strategy, record_api_call, log_quota_status
+    from src.utils.quota import get_degradation_strategy, record_api_call, log_quota_status
     log_quota_status("exa")
     degradation = get_degradation_strategy("exa")
     if degradation["should_degrade"]:

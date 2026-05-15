@@ -10,7 +10,7 @@
 """
 
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
@@ -203,7 +203,7 @@ def cross_source_cluster(
         return []
 
     # 从配置读取阈值
-    dedup_config = get_dedup_config()
+    get_dedup_config()
     if use_dynamic_threshold:
         threshold = _compute_dynamic_threshold(
             items,

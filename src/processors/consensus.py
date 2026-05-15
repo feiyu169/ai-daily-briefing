@@ -9,7 +9,6 @@
 3. 语义极性判断（基于正向/负向词）=> 情感倾向
 """
 
-import re
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Set, Tuple
 
