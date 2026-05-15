@@ -20,6 +20,7 @@ def cross_source_cluster(
     items: List[Dict[str, Any]],
     threshold: float = 0.35,
     min_shared: int = 2,
+    use_dynamic_threshold: bool = False,
 ) -> List[Dict[str, Any]]:
     """将不同源的相关新闻按标题关键词聚类，保留跨源话题
     
@@ -29,8 +30,9 @@ def cross_source_cluster(
     
     Args:
         items: 采集条目列表
-        threshold: Jaccard 相似度阈值
+        threshold: Jaccard 相似度阈值（当 use_dynamic_threshold=False 时使用）
         min_shared: 最小共享关键词数
+        use_dynamic_threshold: 是否使用动态阈值（默认 False，保持向后兼容）
         
     Returns:
         跨源话题列表，按 item_count 降序

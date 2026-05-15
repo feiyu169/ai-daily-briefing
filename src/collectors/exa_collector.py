@@ -40,20 +40,13 @@ def _flatten_queries(queries_cfg: Dict[str, Any]) -> List[Tuple[str, int]]:
     Returns:
         所有分组的查询列表，每项为 (查询关键词, 结果数量)。
     """
-    # 定义参与 Exa 采集的分组名（按期望顺序排列）
-    groups = [
-        "en_queries",
-        "cn_queries",
-        "official_queries",
-        "arxiv_queries",
-        "discussion_queries",
-        "chip_queries",
-        "robot_queries",
-    ]
-
+    # 动态发现所有查询分组（排除非查询配置项）
+    exclude_keys = {"github_queries", "trending_queries"}  # 这些由其他采集器处理
+    
     flat: List[Tuple[str, int]] = []
-    for group in groups:
-        entries = queries_cfg.get(group, [])
+    for group_name, entries in queries_cfg.items():
+        if group_name in exclude_keys:
+            continue
         if not isinstance(entries, list):
             continue
         for entry in entries:
@@ -110,12 +103,17 @@ def collect_exa() -> List[Dict[str, Any]]:
     queries_cfg = get_queries()
     get_collector_config()
 
+    # --- API 配额检查 ---
+    from src.utils.quota import check_quota, get_degradation_strategy, record_api_call, log_quota_status
+    log_quota_status("exa")
+    degradation = get_degradation_strategy("exa")
+    if degradation["should_degrade"]:
+        logger.warning(degradation["message"])
+
     # --- 初始化 Exa 客户端 ---
-    from src.utils.config import get_config
-    cfg = get_config()
-    api_key: str = cfg.get("exa_api_key", "")
+    from src.utils.security import get_api_key
+    api_key = get_api_key("EXA_API_KEY", required=True)
     if not api_key:
-        logger.error("EXA_API_KEY 未配置，请在 .env 中设置")
         return []
 
     exa = Exa(api_key=api_key)
@@ -127,6 +125,14 @@ def collect_exa() -> List[Dict[str, Any]]:
     if not all_queries:
         logger.warning("config.yaml 中未找到有效的 Exa 查询配置")
         return []
+
+    # --- 降级处理：减少查询数量 ---
+    if degradation["should_degrade"]:
+        reduction_ratio = degradation["reduction_ratio"]
+        original_count = len(all_queries)
+        keep_count = max(1, int(original_count * (1 - reduction_ratio)))
+        all_queries = all_queries[:keep_count]
+        logger.warning(f"降级模式: 查询从 {original_count} 条减少到 {keep_count} 条")
 
     logger.info("Exa 采集启动: %d 条查询, 日期锚点 %s", len(all_queries), yesterday)
 
@@ -142,6 +148,9 @@ def collect_exa() -> List[Dict[str, Any]]:
                 type="neural",
                 start_published_date=yesterday,
             )
+
+            # --- 记录 API 调用 ---
+            record_api_call("exa", 1)
 
             group_label = query[:30]
 

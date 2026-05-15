@@ -15,27 +15,12 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Set
 
 from src.utils.config import get_dedup_config, get_noise_patterns
+from src.utils.text import extract_keywords as _extract_keywords
 
 # ============================================================
-# 停用词表
+# 停用词表（保留向后兼容）
 # ============================================================
-STOP_WORDS: Set[str] = {
-    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "shall", "can", "to", "of", "in", "for",
-    "on", "with", "at", "by", "from", "as", "into", "through", "during",
-    "before", "after", "above", "below", "between", "out", "off", "over",
-    "under", "again", "further", "then", "once", "and", "but", "or",
-    "nor", "not", "so", "very", "just", "than", "too", "also", "about",
-    "up", "it", "its", "this", "that", "these", "those", "new", "how",
-    "what", "which", "who", "when", "where", "why", "all", "each",
-    "every", "both", "few", "more", "most", "other", "some", "such",
-    "no", "only", "own", "same", "如果", "的", "了", "在", "是", "我",
-    "有", "和", "就", "不", "人", "都", "一", "一个", "上", "也", "很",
-    "到", "说", "要", "去", "你", "会", "着", "没有", "看", "好", "自己",
-    "这", "他", "她", "它", "们", "那", "被", "从", "对", "把", "与",
-    "以", "但", "中", "等", "又", "而", "或", "及",
-}
+STOP_WORDS: Set[str] = set()  # 已迁移到 src/utils/text.py
 
 
 def extract_keywords(title: str) -> Set[str]:
@@ -50,10 +35,7 @@ def extract_keywords(title: str) -> Set[str]:
     Returns:
         关键词集合。
     """
-    title = title.lower()
-    # 分词：匹配英文单词（字母打头）或连续中文字符
-    words = re.findall(r"[a-z][a-z0-9]+|[\u4e00-\u9fff]+", title)
-    return {w for w in words if w not in STOP_WORDS and len(w) > 1}
+    return _extract_keywords(title)
 
 
 def jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
