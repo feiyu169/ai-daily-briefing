@@ -277,9 +277,9 @@ noise_patterns:
 # 输出配置
 # ============================================================
 output:
-  # 缓存文件路径
-  cache_file: "/tmp/collector_output.json"
+  # 缓存文件路径（使用项目目录下的 .cache）
+  cache_file: ".cache/collector_output.json"
   # URL 历史文件路径
-  history_file: "/tmp/collector_url_history.json"
+  history_file: ".cache/collector_url_history.json"
   # 趋势历史文件路径
-  trends_file: "/tmp/collector_trends_history.json"
+  trends_file: ".cache/collector_trends_history.json"

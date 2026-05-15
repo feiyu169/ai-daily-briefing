@@ -12,7 +12,6 @@ Usage:
 
 import json
 import logging
-import os
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -47,7 +46,8 @@ def _build_headers() -> Dict[str, str]:
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/vnd.github.v3+json",
     }
-    token: str = os.environ.get("GITHUB_TOKEN", "")
+    from src.utils.security import get_api_key
+    token = get_api_key("GITHUB_TOKEN", required=False)
     if token:
         headers["Authorization"] = f"token {token}"
     return headers

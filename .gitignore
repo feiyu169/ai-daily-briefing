@@ -3,6 +3,7 @@
 *.env.local
 
 # Runtime cache
+.cache/
 /tmp/collector_*.json
 __pycache__/
 *.pyc
