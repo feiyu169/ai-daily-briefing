@@ -130,6 +130,10 @@ def _build_chain(pairs: List[Dict], min_chain_length: int = 3) -> List[Dict]:
     chains: List[Dict] = []
 
     def dfs(current: int, path: List[Dict], visited: Set[int]) -> None:
+        # 深度限制：防止指数级爆炸
+        if len(path) >= 10:
+            return
+        
         # path 中的每个 pair 增加一个事件，加上起始事件 = len(path) + 1 个事件
         if len(path) + 1 >= min_chain_length:
             chains.append({

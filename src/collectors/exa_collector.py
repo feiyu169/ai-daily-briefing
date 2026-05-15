@@ -139,42 +139,47 @@ def collect_exa() -> List[Dict[str, Any]]:
     all_results: List[Dict[str, Any]] = []
     seen_urls: set = set()
 
-    for query, num in all_queries:
+    # --- 并行执行查询 ---
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    def _execute_query(query_num: tuple) -> List[Dict[str, Any]]:
+        """执行单个查询"""
+        query, num = query_num
         try:
-            # --- 发送 Exa neural search ---
             results = exa.search(
                 query,
                 num_results=num,
                 type="neural",
                 start_published_date=yesterday,
             )
-
+            
             # --- 记录 API 调用 ---
             record_api_call("exa", 1)
-
+            
             group_label = query[:30]
-
+            query_results = []
+            
             for r in results.results:
                 url: str = r.url or ""
                 if url in seen_urls:
                     continue
                 seen_urls.add(url)
-
+                
                 # 基础字段
                 title: str = r.title or ""
                 snippet: str = (r.text or "")[:400]
-
+                
                 # 日期校验
                 raw_date = r.published_date
                 published_str: str = str(raw_date)[:10] if raw_date else "unknown"
                 if published_str in ("unknown", "") or published_str < yesterday:
                     continue
-
+                
                 # 来源标签 + 分类
                 source_tag: str = _infer_source_tag(query)
                 category: str = classify_item(title, snippet)
-
-                all_results.append({
+                
+                query_results.append({
                     "title": title,
                     "url": url,
                     "source": source_tag,
@@ -183,9 +188,23 @@ def collect_exa() -> List[Dict[str, Any]]:
                     "query_group": group_label,
                     "category": category,
                 })
-
+            
+            return query_results
         except Exception as e:
             logger.warning("Exa 查询失败: %s... -> %s", query[:30], e)
+            return []
+    
+    # 使用线程池并行执行
+    max_workers = min(5, len(all_queries))  # 最多 5 个并发
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_execute_query, q): q for q in all_queries}
+        for future in as_completed(futures):
+            try:
+                query_results = future.result(timeout=30)
+                all_results.extend(query_results)
+            except Exception as e:
+                query = futures[future]
+                logger.warning("Exa 查询超时或失败: %s... -> %s", query[0][:30], e)
 
     logger.info(
         "Exa 采集完成: 共收集 %d 条结果 (来自 %d 条查询)",
@@ -210,11 +229,9 @@ def collect_exa_from_group(group_name: str) -> List[Dict[str, Any]]:
         logger.warning("查询分组 %s 未找到或为空", group_name)
         return []
 
-    from src.utils.config import get_config
-    cfg = get_config()
-    api_key: str = cfg.get("exa_api_key", "")
+    from src.utils.security import get_api_key
+    api_key = get_api_key("EXA_API_KEY", required=True)
     if not api_key:
-        logger.error("EXA_API_KEY 未配置")
         return []
 
     exa = Exa(api_key=api_key)

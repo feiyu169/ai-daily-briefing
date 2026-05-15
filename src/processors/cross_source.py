@@ -210,13 +210,17 @@ def cross_source_cluster(
             base_threshold=threshold,
         )
 
-    # 构建全局词频（用于加权 Jaccard）
-    global_freq = _build_global_frequency(items) if enable_weighted_jaccard else None
-
-    # 为每条 item 提取关键词
+    # 为每条 item 提取关键词（缓存结果）
     item_kws: List[Tuple[Dict[str, Any], Set[str]]] = [
         (item, extract_keywords(item.get("title", ""))) for item in items
     ]
+
+    # 构建全局词频（用于加权 Jaccard）- 使用缓存的关键词
+    global_freq = None
+    if enable_weighted_jaccard:
+        global_freq = Counter()
+        for _, kw in item_kws:
+            global_freq.update(kw)
 
     clusters: List[Dict[str, Any]] = []
 
