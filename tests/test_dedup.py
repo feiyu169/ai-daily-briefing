@@ -3,7 +3,6 @@
 ==========
 """
 
-import pytest
 from src.processors.dedup import (
     extract_keywords,
     jaccard_similarity,

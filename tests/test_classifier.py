@@ -3,7 +3,6 @@
 ==========
 """
 
-import pytest
 from src.processors.classifier import classify_item
 
 

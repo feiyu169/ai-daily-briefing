@@ -3,7 +3,6 @@
 ============
 """
 
-import pytest
 from src.processors.trends import detect_trend_keywords, extract_keywords
 
 
