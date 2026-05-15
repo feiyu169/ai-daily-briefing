@@ -1,0 +1,9 @@
+# AI Daily Briefing v6 依赖锁定文件
+# 此文件由 pip freeze 生成，用于确保可重复安装
+# 更新依赖时，请先修改 requirements.txt，然后运行：
+#   pip install -r requirements.txt
+#   pip freeze > requirements.lock
+
+exa-py==2.13.0
+PyYAML==6.0.3
+python-dotenv==1.2.2
