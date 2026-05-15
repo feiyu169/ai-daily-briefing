@@ -41,13 +41,26 @@ def main() -> None:
     collector_config = get_collector_config()
     output_config = get_output_config()
     
-    cache_file = output_config.get("cache_file", "/tmp/collector_output.json")
-    history_file = output_config.get("history_file", "/tmp/collector_url_history.json")
-    trends_file = output_config.get("trends_file", "/tmp/collector_trends_history.json")
+    cache_file = output_config.get("cache_file", ".cache/collector_output.json")
+    history_file = output_config.get("history_file", ".cache/collector_url_history.json")
+    trends_file = output_config.get("trends_file", ".cache/collector_trends_history.json")
     cache_ttl = collector_config.get("cache_ttl", 1800)
     history_days = collector_config.get("history_days", 7)
     trends_days = collector_config.get("trends_days", 3)
     query_timeout = collector_config.get("query_timeout", 60)
+
+    # 路径安全校验：确保文件路径在项目目录内
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for file_path in [cache_file, history_file, trends_file]:
+        abs_path = os.path.abspath(file_path)
+        if not abs_path.startswith(project_root):
+            logger.error(f"文件路径 {file_path} 不在项目目录内，可能存在安全风险")
+            sys.exit(1)
+
+    # 确保缓存目录存在
+    cache_dir = os.path.dirname(cache_file)
+    if cache_dir:
+        os.makedirs(cache_dir, exist_ok=True)
 
     # 快速路径: 缓存复用
     if os.path.exists(cache_file):
@@ -115,6 +128,23 @@ def main() -> None:
     if cross_signals:
         logger.info(f"跨源话题: {len(cross_signals)} 个")
 
+    # 因果链分析
+    from src.processors.causal_chain import detect_causal_chains
+    causal_chains = detect_causal_chains(merged)
+    if causal_chains:
+        logger.info(f"因果链: {len(causal_chains)} 条")
+
+    # 共识/分歧分析
+    from src.processors.consensus import analyze_consensus
+    if cross_signals:
+        # 将聚类结果转换为共识分析所需的格式
+        cluster_items = [signal.get("items", []) for signal in cross_signals]
+        consensus_analysis = analyze_consensus(cluster_items)
+        if consensus_analysis:
+            logger.info(f"共识分析: {len(consensus_analysis)} 个聚类")
+    else:
+        consensus_analysis = []
+
     # 按类别统计
     category_counts = Counter(item.get("category", "未分类") for item in merged)
 
@@ -137,13 +167,20 @@ def main() -> None:
             "new": list(new_trends)[:15],
         },
         "cross_platform_signals": cross_signals,
+        "causal_chains": causal_chains,
+        "consensus_analysis": consensus_analysis,
         "items": merged,
     }
 
-    with open(cache_file, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False)
-
-    print(json.dumps(output, ensure_ascii=False))
+    # 使用交付管理器输出
+    from src.delivery import create_default_delivery
+    delivery_manager = create_default_delivery(cache_file)
+    results = delivery_manager.deliver_all(output)
+    
+    # 检查交付结果
+    for channel, success in results.items():
+        if not success:
+            logger.warning(f"交付通道 {channel} 失败")
 
 
 if __name__ == "__main__":

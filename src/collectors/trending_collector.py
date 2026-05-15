@@ -20,6 +20,7 @@ from exa_py import Exa
 
 from src.processors.classifier import classify_item
 from src.utils.config import get_queries
+from src.utils.security import sanitize_error_message
 
 logger = logging.getLogger("ai_daily_briefing.collectors.trending")
 
@@ -63,11 +64,10 @@ def collect_github_trending() -> List[Dict[str, Any]]:
         logger.warning("config.yaml 中未找到 queries.trending_queries，使用默认查询")
 
     # --- 初始化 Exa ---
-    from src.utils.config import get_config
-    config = get_config()
-    exa_api_key: str = config.get("exa_api_key", "") or ""
+    from src.utils.security import get_api_key
+    exa_api_key = get_api_key("EXA_API_KEY", required=False)
     if not exa_api_key:
-        logger.error("EXA_API_KEY 未配置，无法执行 GitHub Trending 采集")
+        logger.warning("EXA_API_KEY 未配置，跳过 GitHub Trending 采集")
         return []
 
     exa = Exa(api_key=exa_api_key)
@@ -125,7 +125,7 @@ def collect_github_trending() -> List[Dict[str, Any]]:
                 })
 
         except Exception as e:
-            logger.warning("GitHub Trending Exa 查询失败: %s ... -> %s", query[:30], e)
+            logger.warning("GitHub Trending Exa 查询失败: %s ... -> %s", query[:30], sanitize_error_message(str(e)))
 
     logger.info("GitHub Trending 采集完成，共 %d 条结果", len(results))
     return results

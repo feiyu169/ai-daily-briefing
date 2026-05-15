@@ -12,13 +12,13 @@ Usage:
 
 import json
 import logging
-import os
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from src.utils.config import get_queries
+from src.utils.security import sanitize_error_message
 from src.processors.classifier import classify_item
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,8 @@ def _build_headers() -> Dict[str, str]:
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/vnd.github.v3+json",
     }
-    token: str = os.environ.get("GITHUB_TOKEN", "")
+    from src.utils.security import get_api_key
+    token = get_api_key("GITHUB_TOKEN", required=False)
     if token:
         headers["Authorization"] = f"token {token}"
     return headers
@@ -68,7 +69,7 @@ def _load_queries(since: str) -> List[str]:
         if github_queries_raw:
             return [q["query"].replace("{since}", since) for q in github_queries_raw]
     except Exception as exc:
-        logger.warning("加载 github_queries 配置失败: %s, 使用默认查询", exc)
+        logger.warning("加载 github_queries 配置失败: %s, 使用默认查询", sanitize_error_message(str(exc)))
 
     return [q.replace("{since}", since) for q in DEFAULT_GITHUB_QUERIES]
 
@@ -150,13 +151,13 @@ def _fetch_repos(
                 results.append(item)
 
     except urllib.error.HTTPError as exc:
-        logger.warning("GitHub API HTTP 错误 (%s): %s — %s", exc.code, query[:40], exc.reason)
+        logger.warning("GitHub API HTTP 错误 (%s): %s — %s", exc.code, query[:40], sanitize_error_message(str(exc.reason)))
     except urllib.error.URLError as exc:
-        logger.warning("GitHub API 网络错误: %s — %s", query[:40], exc.reason)
+        logger.warning("GitHub API 网络错误: %s — %s", query[:40], sanitize_error_message(str(exc.reason)))
     except json.JSONDecodeError as exc:
-        logger.warning("GitHub API 响应解析失败: %s — %s", query[:40], exc)
+        logger.warning("GitHub API 响应解析失败: %s — %s", query[:40], sanitize_error_message(str(exc)))
     except Exception as exc:
-        logger.warning("GitHub 查询失败: %s... -> %s", query[:40], exc)
+        logger.warning("GitHub 查询失败: %s... -> %s", query[:40], sanitize_error_message(str(exc)))
 
 
 def collect_github(max_results: int = 20) -> List[Dict[str, Any]]:
