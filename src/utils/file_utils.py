@@ -6,9 +6,8 @@ JSON 文件读写、历史管理
 
 import json
 import os
-import sys
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from .logger import logger
 

@@ -19,10 +19,9 @@ Usage:
     # results: List[Dict] 每条含 title/url/source/published/snippet/query_group/category
 """
 
-import sys
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from exa_py import Exa
 
@@ -109,8 +108,7 @@ def collect_exa() -> List[Dict[str, Any]]:
     """
     # --- 配置加载 ---
     queries_cfg = get_queries()
-    collector_cfg = get_collector_config()
-    timeout = collector_cfg.get("query_timeout", 60)
+    get_collector_config()
 
     # --- 初始化 Exa 客户端 ---
     from src.utils.config import get_config

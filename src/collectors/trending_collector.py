@@ -12,10 +12,9 @@ Usage:
 """
 
 import logging
-import sys
 import urllib.parse
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from exa_py import Exa
 

@@ -10,7 +10,7 @@ Usage:
     # -> "融资/并购"
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from src.utils.config import get_categories
 

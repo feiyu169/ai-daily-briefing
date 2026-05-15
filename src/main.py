@@ -9,18 +9,17 @@ import os
 import sys
 import time
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from .collectors.exa_collector import collect_exa
 from .collectors.github_collector import collect_github
 from .collectors.trending_collector import collect_github_trending
-from .processors.classifier import classify_item
 from .processors.dedup import dedup_and_filter
-from .processors.trends import detect_trend_keywords, get_trend_momentum
+from .processors.trends import detect_trend_keywords
 from .processors.cross_source import cross_source_cluster
-from .utils.config import get_config, get_collector_config, get_output_config
+from .utils.config import get_collector_config, get_output_config
 from .utils.file_utils import (
     load_url_history,
     save_url_history,
@@ -39,7 +38,6 @@ def main() -> None:
         sys.exit(1)
 
     # 获取配置
-    config = get_config()
     collector_config = get_collector_config()
     output_config = get_output_config()
     
