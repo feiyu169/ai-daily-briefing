@@ -185,6 +185,16 @@ queries:
       num: 5
     - query: "NVIDIA AMD Intel AI accelerator chip new release"
       num: 5
+    - query: "TSMC台积电 先进制程 3nm 2nm 芯片制造"
+      num: 5
+    - query: "AI芯片 寒武纪 海光信息 国产GPU 算力"
+      num: 5
+    - query: "semiconductor supply chain chip shortage 2026"
+      num: 5
+    - query: "AI accelerator chip startup funding valuation"
+      num: 5
+    - query: "chip lithography EDA semiconductor equipment"
+      num: 5
 
   # 机器人/具身智能专项查询
   robot_queries:
@@ -193,6 +203,16 @@ queries:
     - query: "机器人 具身智能 人形机器人 操作 抓取"
       num: 5
     - query: "Tesla Bot Optimus Figure 1X robot AI latest"
+      num: 5
+    - query: "humanoid robot startup funding 2026"
+      num: 5
+    - query: "机器人 宇树科技 小米机器人 智能制造"
+      num: 5
+    - query: "robot manipulation grasping locomotion AI"
+      num: 5
+    - query: "Boston Dynamics Agility Robotics commercial robot"
+      num: 5
+    - query: "embodied AI robot foundation model"
       num: 5
 
   # 中文 AI 生态
