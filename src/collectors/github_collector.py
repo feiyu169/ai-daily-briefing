@@ -12,7 +12,6 @@ Usage:
 
 import json
 import logging
-import os
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
