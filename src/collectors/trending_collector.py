@@ -97,9 +97,14 @@ def collect_github_trending() -> List[Dict[str, Any]]:
                 if "github.com" not in url:
                     continue
 
-                # 过滤：只保留仓库级 URL（owner/repo），排除 commit/PR/release/wiki
+                # 过滤：只保留仓库级 URL（owner/repo）和 release URL
+                # 排除 commit/PR/wiki 等深层路径
                 path_parts = urllib.parse.urlparse(url).path.strip("/").split("/")
-                if len(path_parts) != 2:
+                if len(path_parts) < 2:
+                    continue
+                # 允许：owner/repo, owner/repo/releases/tag/xxx
+                # 排除：owner/repo/commit/xxx, owner/repo/pull/xxx
+                if len(path_parts) > 2 and path_parts[2] not in ("releases", "tag"):
                     continue
 
                 snippet: str = (item.text or "")[:400]
