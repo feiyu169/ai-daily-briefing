@@ -14,7 +14,8 @@ from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 from urllib.parse import urlparse
 
-from .dedup import extract_keywords, jaccard_similarity
+from src.utils.text import extract_keywords
+from .dedup import jaccard_similarity
 
 from src.utils.config import get_dedup_config
 

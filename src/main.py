@@ -115,6 +115,23 @@ def main() -> None:
     if cross_signals:
         logger.info(f"跨源话题: {len(cross_signals)} 个")
 
+    # 因果链分析
+    from src.processors.causal_chain import detect_causal_chains
+    causal_chains = detect_causal_chains(merged)
+    if causal_chains:
+        logger.info(f"因果链: {len(causal_chains)} 条")
+
+    # 共识/分歧分析
+    from src.processors.consensus import analyze_consensus
+    if cross_signals:
+        # 将聚类结果转换为共识分析所需的格式
+        cluster_items = [signal.get("items", []) for signal in cross_signals]
+        consensus_analysis = analyze_consensus(cluster_items)
+        if consensus_analysis:
+            logger.info(f"共识分析: {len(consensus_analysis)} 个聚类")
+    else:
+        consensus_analysis = []
+
     # 按类别统计
     category_counts = Counter(item.get("category", "未分类") for item in merged)
 
@@ -137,6 +154,8 @@ def main() -> None:
             "new": list(new_trends)[:15],
         },
         "cross_platform_signals": cross_signals,
+        "causal_chains": causal_chains,
+        "consensus_analysis": consensus_analysis,
         "items": merged,
     }
 

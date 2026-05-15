@@ -10,6 +10,11 @@ from typing import Dict
 from .logger import logger
 from .file_utils import load_json_file, save_json_file
 
+import os
+
+# 项目根目录（自动探测）
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 # 配额配置
 QUOTA_CONFIG = {
@@ -22,7 +27,7 @@ QUOTA_CONFIG = {
 }
 
 # 配额使用记录文件
-QUOTA_FILE = ".cache/api_quota.json"
+QUOTA_FILE = os.path.join(PROJECT_ROOT, ".cache", "api_quota.json")
 
 
 def load_quota() -> Dict:

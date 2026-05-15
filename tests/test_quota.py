@@ -10,6 +10,7 @@ from src.utils.quota import (
     record_api_call,
     check_quota,
     get_degradation_strategy,
+    log_quota_status,
 )
 
 
@@ -119,6 +120,48 @@ class TestCheckQuota:
             }
             status = check_quota("exa")
             assert status["status"] == "critical"
+
+
+class TestLogQuotaStatus:
+    """log_quota_status 测试"""
+
+    def test_log_quota_status_ok(self):
+        """测试配额正常时日志记录"""
+        with patch("src.utils.quota.check_quota") as mock_check, \
+             patch("src.utils.quota.logger") as mock_logger:
+            mock_check.return_value = {
+                "status": "ok",
+                "daily_ratio": 0.1,
+                "monthly_ratio": 0.05,
+            }
+            log_quota_status("exa")
+            # ok 状态不输出任何日志（不调用 logger.info/warning）
+            mock_logger.info.assert_not_called()
+            mock_logger.warning.assert_not_called()
+
+    def test_log_quota_status_warning(self):
+        """测试配额警告时日志记录"""
+        with patch("src.utils.quota.check_quota") as mock_check, \
+             patch("src.utils.quota.logger") as mock_logger:
+            mock_check.return_value = {
+                "status": "warning",
+                "daily_ratio": 0.85,
+                "monthly_ratio": 0.80,
+            }
+            log_quota_status("exa")
+            mock_logger.info.assert_called_once()
+
+    def test_log_quota_status_critical(self):
+        """测试配额临界时日志记录"""
+        with patch("src.utils.quota.check_quota") as mock_check, \
+             patch("src.utils.quota.logger") as mock_logger:
+            mock_check.return_value = {
+                "status": "critical",
+                "daily_ratio": 0.96,
+                "monthly_ratio": 0.95,
+            }
+            log_quota_status("exa")
+            mock_logger.warning.assert_called_once()
 
 
 class TestGetDegradationStrategy:

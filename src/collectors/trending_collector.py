@@ -20,6 +20,7 @@ from exa_py import Exa
 
 from src.processors.classifier import classify_item
 from src.utils.config import get_queries
+from src.utils.security import sanitize_error_message
 
 logger = logging.getLogger("ai_daily_briefing.collectors.trending")
 
@@ -124,7 +125,7 @@ def collect_github_trending() -> List[Dict[str, Any]]:
                 })
 
         except Exception as e:
-            logger.warning("GitHub Trending Exa 查询失败: %s ... -> %s", query[:30], e)
+            logger.warning("GitHub Trending Exa 查询失败: %s ... -> %s", query[:30], sanitize_error_message(str(e)))
 
     logger.info("GitHub Trending 采集完成，共 %d 条结果", len(results))
     return results

@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Set, Tuple
 
-from .dedup import extract_keywords
+from src.utils.text import extract_keywords
 
 
 # 因果指示词 — 表示前序事件可能触发后序事件
@@ -75,7 +75,7 @@ def _extract_causal_pairs(
             dt_j, item_j = dated_items[j]
             delta = (dt_j - dt_i).total_seconds()
             if delta > time_window_hours * 3600:
-                continue  # 超过时间窗口，因为有序所以可以 break
+                break  # 超过时间窗口，因为有序所以可以 break
 
             title_j = item_j.get("title", "").lower()
             kw_j = extract_keywords(title_j)

@@ -20,12 +20,14 @@ Usage:
 """
 
 import logging
+import threading
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from exa_py import Exa
 
 from src.utils.config import get_queries, get_collector_config
+from src.utils.security import sanitize_error_message
 from src.processors.classifier import classify_item
 
 logger = logging.getLogger(__name__)
@@ -74,6 +76,86 @@ def _infer_source_tag(query: str) -> str:
     if "arxiv" in q_lower or "\u8bba\u6587" in q_lower:  # 论文
         return "research"
     return "news"
+
+
+def _execute_exa_search(
+    exa: Exa,
+    query: str,
+    num: int,
+    yesterday: str,
+    query_label: str,
+    seen_urls: Set[str],
+    seen_urls_lock: threading.Lock = None,
+) -> List[Dict[str, Any]]:
+    """执行单个 Exa 查询并处理结果。
+
+    共享函数，被 collect_exa() 和 collect_exa_from_group() 共用。
+
+    Args:
+        exa: Exa 客户端实例。
+        query: 查询关键词。
+        num: 结果数量。
+        yesterday: 日期锚点 (YYYY-MM-DD)。
+        query_label: 查询分组标签（用于结果标注）。
+        seen_urls: 已见 URL 集合（线程共享时由调用方控制锁）。
+        seen_urls_lock: 可选的线程锁，保护 seen_urls 的并发安全。
+
+    Returns:
+        本查询的采集结果列表。
+    """
+    try:
+        results = exa.search(
+            query,
+            num_results=num,
+            type="neural",
+            start_published_date=yesterday,
+        )
+    except Exception as e:
+        logger.warning(
+            "Exa 查询失败: %s... -> %s", query[:30], sanitize_error_message(str(e))
+        )
+        return []
+
+    query_results: List[Dict[str, Any]] = []
+    for r in results.results:
+        url: str = r.url or ""
+
+        # 线程安全地检查和添加 URL
+        if seen_urls_lock:
+            with seen_urls_lock:
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+        else:
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+
+        # 基础字段
+        title: str = r.title or ""
+        snippet: str = (r.text or "")[:400]
+
+        # 日期校验
+        raw_date = r.published_date
+        published_str: str = str(raw_date)[:10] if raw_date else "unknown"
+        if published_str in ("unknown", "") or published_str < yesterday:
+            continue
+
+        # 来源标签 + 分类
+        source_tag: str = _infer_source_tag(query)
+        category: str = classify_item(title, snippet)
+
+        query_results.append({
+            "title": title,
+            "url": url,
+            "source": source_tag,
+            "published": published_str,
+            "snippet": snippet,
+            "query_group": query_label,
+            "category": category,
+        })
+
+    return query_results
 
 
 def collect_exa() -> List[Dict[str, Any]]:
@@ -138,61 +220,21 @@ def collect_exa() -> List[Dict[str, Any]]:
 
     all_results: List[Dict[str, Any]] = []
     seen_urls: set = set()
+    seen_urls_lock = threading.Lock()  # 保护 seen_urls 的线程安全
 
     # --- 并行执行查询 ---
     from concurrent.futures import ThreadPoolExecutor, as_completed
     
     def _execute_query(query_num: tuple) -> List[Dict[str, Any]]:
-        """执行单个查询"""
+        """执行单个查询（线程池内部使用）"""
         query, num = query_num
-        try:
-            results = exa.search(
-                query,
-                num_results=num,
-                type="neural",
-                start_published_date=yesterday,
-            )
-            
+        query_results = _execute_exa_search(
+            exa, query, num, yesterday, query[:30], seen_urls, seen_urls_lock,
+        )
+        if query_results:
             # --- 记录 API 调用 ---
             record_api_call("exa", 1)
-            
-            group_label = query[:30]
-            query_results = []
-            
-            for r in results.results:
-                url: str = r.url or ""
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-                
-                # 基础字段
-                title: str = r.title or ""
-                snippet: str = (r.text or "")[:400]
-                
-                # 日期校验
-                raw_date = r.published_date
-                published_str: str = str(raw_date)[:10] if raw_date else "unknown"
-                if published_str in ("unknown", "") or published_str < yesterday:
-                    continue
-                
-                # 来源标签 + 分类
-                source_tag: str = _infer_source_tag(query)
-                category: str = classify_item(title, snippet)
-                
-                query_results.append({
-                    "title": title,
-                    "url": url,
-                    "source": source_tag,
-                    "published": published_str,
-                    "snippet": snippet,
-                    "query_group": group_label,
-                    "category": category,
-                })
-            
-            return query_results
-        except Exception as e:
-            logger.warning("Exa 查询失败: %s... -> %s", query[:30], e)
-            return []
+        return query_results
     
     # 使用线程池并行执行
     max_workers = min(5, len(all_queries))  # 最多 5 个并发
@@ -204,7 +246,7 @@ def collect_exa() -> List[Dict[str, Any]]:
                 all_results.extend(query_results)
             except Exception as e:
                 query = futures[future]
-                logger.warning("Exa 查询超时或失败: %s... -> %s", query[0][:30], e)
+                logger.warning("Exa 查询超时或失败: %s... -> %s", query[0][:30], sanitize_error_message(str(e)))
 
     logger.info(
         "Exa 采集完成: 共收集 %d 条结果 (来自 %d 条查询)",
@@ -246,36 +288,9 @@ def collect_exa_from_group(group_name: str) -> List[Dict[str, Any]]:
         if not query:
             continue
 
-        try:
-            resp = exa.search(
-                query,
-                num_results=num,
-                type="neural",
-                start_published_date=yesterday,
-            )
-            for r in resp.results:
-                url: str = r.url or ""
-                if url in seen_urls:
-                    continue
-                seen_urls.add(url)
-
-                title: str = r.title or ""
-                snippet: str = (r.text or "")[:400]
-                raw_date = r.published_date
-                published_str: str = str(raw_date)[:10] if raw_date else "unknown"
-                if published_str in ("unknown", "") or published_str < yesterday:
-                    continue
-
-                results.append({
-                    "title": title,
-                    "url": url,
-                    "source": _infer_source_tag(query),
-                    "published": published_str,
-                    "snippet": snippet,
-                    "query_group": query[:30],
-                    "category": classify_item(title, snippet),
-                })
-        except Exception as e:
-            logger.warning("Exa 查询失败 [%s]: %s... -> %s", group_name, query[:30], e)
+        query_results = _execute_exa_search(
+            exa, query, num, yesterday, query[:30], seen_urls,
+        )
+        results.extend(query_results)
 
     return results

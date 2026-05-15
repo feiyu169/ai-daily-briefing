@@ -12,7 +12,7 @@
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Set, Tuple
 
-from .dedup import extract_keywords
+from src.utils.text import extract_keywords
 
 
 # 正面情感词

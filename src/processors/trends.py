@@ -15,39 +15,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 from src.utils.config import get_collector_config
 from src.utils.file_utils import load_trends_history, save_trends_history
-
-# 默认停用词（与 v5 extract_keywords 对齐）
-STOP_WORDS: Set[str] = {
-    "the", "a", "an", "is", "are", "was", "were", "be", "been",
-    "has", "have", "had", "do", "does", "did", "will", "would",
-    "can", "could", "shall", "should", "may", "might", "must",
-    "to", "of", "in", "for", "on", "and", "or", "but", "not",
-    "with", "at", "from", "by", "as", "into", "through", "during",
-    "before", "after", "above", "below", "between", "out", "off",
-    "over", "under", "again", "further", "then", "once", "here",
-    "there", "when", "where", "why", "how", "all", "each", "every",
-    "both", "few", "more", "most", "other", "some", "such", "no",
-    "nor", "only", "own", "same", "so", "than", "too", "very",
-    "just", "about", "up", "it", "its", "that", "this", "these",
-    "those", "what", "which", "who", "whom", "this", "new",
-}
-
-
-def extract_keywords(title: str) -> Set[str]:
-    """从标题中提取关键词（去停用词、小写化）
-
-    与 v5 中的 extract_keywords 逻辑保持一致。
-
-    Args:
-        title: 标题文本
-
-    Returns:
-        提取出的关键词集合
-    """
-    title = title.lower()
-    # 英文词（至少两个字母/数字）或中文字符
-    words = re.findall(r"[a-z][a-z0-9]+|[\u4e00-\u9fff]+", title)
-    return {w for w in words if w not in STOP_WORDS and len(w) > 1}
+from src.utils.text import extract_keywords
 
 
 def detect_trend_keywords(
@@ -81,7 +49,7 @@ def detect_trend_keywords(
 
 def get_trend_momentum(
     items: List[Dict[str, Any]],
-    trends_file: str | None = None,
+    trends_file: str = None,
     min_freq: int = 2,
 ) -> Tuple[Set[str], Dict[str, Any]]:
     """检测趋势关键词并计算 momentum
