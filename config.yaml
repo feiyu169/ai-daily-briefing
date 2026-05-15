@@ -1,0 +1,285 @@
+# AI Daily Briefing v6 配置
+# 敏感信息（API Key）请放在 .env 文件中
+
+# ============================================================
+# 采集配置
+# ============================================================
+collector:
+  # 缓存 TTL（秒）
+  cache_ttl: 1800
+  # URL 历史保留天数
+  history_days: 7
+  # 趋势历史保留天数
+  trends_days: 3
+  # 并发查询数限制
+  max_concurrent_queries: 5
+  # 单次查询超时（秒）
+  query_timeout: 60
+
+# ============================================================
+# 分类规则
+# ============================================================
+categories:
+  融资/并购:
+    keywords:
+      - 融资
+      - 估值
+      - series
+      - funding
+      - valuation
+      - ipo
+      - acquisition
+      - 并购
+      - 收购
+      - raises
+      - million
+      - billion
+      - 投资
+      - invest
+      - round
+      - capital
+      - venture
+    priority: 1
+
+  产品发布:
+    keywords:
+      - 发布
+      - release
+      - launch
+      - 推出
+      - 新版
+      - 更新
+      - update
+      - announce
+      - introduces
+      - unveils
+      - 正式上线
+      - 可用
+      - available
+      - open source
+      - 开源
+    priority: 2
+
+  技术突破:
+    keywords:
+      - 突破
+      - breakthrough
+      - research
+      - paper
+      - 论文
+      - 研究
+      - achieves
+      - benchmark
+      - 性能
+      - performance
+      - state-of-the-art
+      - sota
+      - arxiv
+      - algorithm
+      - 算法
+    priority: 3
+
+  政策/监管:
+    keywords:
+      - 政策
+      - regulation
+      - policy
+      - 监管
+      - safety
+      - alignment
+      - government
+      - 政府
+      - 法规
+      - 合规
+      - compliance
+      - pentagon
+      - 五角大楼
+      - classified
+      - deal
+    priority: 4
+
+  芯片/半导体:
+    keywords:
+      - chip
+      - 芯片
+      - semiconductor
+      - 半导体
+      - GPU
+      - TPU
+      - NPU
+      - NVIDIA
+      - AMD
+      - Intel
+      - Qualcomm
+      - TSMC
+      - 台积电
+      - 光刻
+      - lithography
+      - 制程
+      - process
+      - wafer
+      - 晶圆
+      - EDA
+      - 算力
+      - compute
+      - 算力芯片
+      - AI芯片
+      - 国产芯片
+      - 国产替代
+    priority: 5
+
+  机器人/具身智能:
+    keywords:
+      - robot
+      - 机器人
+      - robotics
+      - 具身智能
+      - embodied
+      - humanoid
+      - 人形机器人
+      - manipulation
+      - 操作
+      - 抓取
+      - grasp
+      - locomotion
+      - 运动控制
+      - Tesla Bot
+      - Optimus
+      - Figure
+      - 1X
+      - Agility
+      - Boston Dynamics
+      - 特斯拉机器人
+      - 宇树
+      - 小米机器人
+    priority: 6
+
+  行业动态:
+    keywords: []  # 默认类别
+    priority: 99
+
+# ============================================================
+# 采集查询
+# ============================================================
+queries:
+  # 英文 AI 新闻
+  en_queries:
+    - query: "artificial intelligence AI latest news breakthroughs funding"
+      num: 10
+    - query: "large language model LLM GPT Claude Gemini agent release"
+      num: 8
+    - query: "AI startup funding round valuation 2026"
+      num: 6
+    - query: "AI open source model Hugging Face robotics"
+      num: 6
+    - query: "AI regulation policy safety alignment"
+      num: 5
+    - query: "generative AI image video audio generation model"
+      num: 5
+
+  # 芯片/半导体专项查询
+  chip_queries:
+    - query: "AI chip GPU NVIDIA semiconductor compute latest"
+      num: 6
+    - query: "AI芯片 GPU 算力 国产替代 半导体"
+      num: 5
+    - query: "NVIDIA AMD Intel AI accelerator chip new release"
+      num: 5
+
+  # 机器人/具身智能专项查询
+  robot_queries:
+    - query: "AI robot robotics embodied intelligence humanoid"
+      num: 6
+    - query: "机器人 具身智能 人形机器人 操作 抓取"
+      num: 5
+    - query: "Tesla Bot Optimus Figure 1X robot AI latest"
+      num: 5
+
+  # 中文 AI 生态
+  cn_queries:
+    - query: "人工智能 大模型 最新发布 突破"
+      num: 8
+    - query: "DeepSeek Qwen MiMo 通义千问 国产大模型"
+      num: 8
+    - query: "AI 创业公司 融资 估值 2026"
+      num: 6
+    - query: "AI Agent 智能体 自动化 应用"
+      num: 5
+    - query: "36氪 机器之心 量子位 AI 人工智能"
+      num: 6
+
+  # 大厂官方动态
+  official_queries:
+    - query: "OpenAI Anthropic Google DeepMind latest announcement"
+      num: 6
+    - query: "Meta AI Microsoft AI Amazon AI latest news"
+      num: 5
+    - query: "site:openai.com OR site:anthropic.com OR site:deepmind.google"
+      num: 5
+
+  # 学术前沿
+  arxiv_queries:
+    - query: "arxiv AI paper latest breakthrough research 2026"
+      num: 6
+    - query: "机器学习 深度学习 最新论文 研究突破"
+      num: 5
+
+  # HN/Reddit 讨论
+  discussion_queries:
+    - query: "site:news.ycombinator.com AI LLM model agent"
+      num: 8
+    - query: "site:reddit.com artificial intelligence machine learning latest"
+      num: 8
+    - query: "Hacker News top AI discussion today"
+      num: 5
+
+  # GitHub
+  github_queries:
+    - query: "created:{since} topic:artificial-intelligence stars:>20"
+      num: 5
+    - query: "created:{since} topic:machine-learning stars:>20"
+      num: 5
+    - query: "created:{since} topic:llm stars:>10"
+      num: 5
+    - query: "created:{since} topic:deep-learning stars:>20"
+      num: 5
+    - query: "pushed:{since} topic:ai-agent stars:>100"
+      num: 5
+
+  # GitHub Trending
+  trending_queries:
+    - query: "site:github.com trending AI machine learning stars today"
+      num: 8
+    - query: "site:github.com trending LLM agent framework popular"
+      num: 6
+
+# ============================================================
+# 去重配置
+# ============================================================
+dedup:
+  # 语义去重阈值（Jaccard 相似度）
+  semantic_threshold: 0.45
+  # 跨源聚类阈值
+  cross_source_threshold: 0.35
+  # 最小共享关键词数
+  min_shared_keywords: 2
+
+# ============================================================
+# 噪声过滤
+# ============================================================
+noise_patterns:
+  - "huggingface.co/datasets/"
+  - "huggingface.co/models/"
+  - "kaggle.com/"
+  - "leetcode.com"
+
+# ============================================================
+# 输出配置
+# ============================================================
+output:
+  # 缓存文件路径
+  cache_file: "/tmp/collector_output.json"
+  # URL 历史文件路径
+  history_file: "/tmp/collector_url_history.json"
+  # 趋势历史文件路径
+  trends_file: "/tmp/collector_trends_history.json"
