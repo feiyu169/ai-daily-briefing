@@ -11,7 +11,7 @@ import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from .collectors.exa_collector import collect_exa
 from .collectors.github_collector import collect_github
@@ -29,44 +29,48 @@ from .utils.file_utils import (
 from .utils.logger import logger
 
 
-def _load_cache(cache_file: str, cache_ttl: int) -> Optional[Dict[str, Any]]:
-    """加载缓存，如果有效则返回缓存数据，否则返回 None。
+def main() -> None:
+    """主入口函数"""
+    # 校验必需环境变量
+    exa_api_key = os.environ.get("EXA_API_KEY", "")
+    if not exa_api_key:
+        logger.error("EXA_API_KEY 未设置，请 export EXA_API_KEY=xxx")
+        sys.exit(1)
 
-    Args:
-        cache_file: 缓存文件路径。
-        cache_ttl: 缓存有效期（秒）。
+    # 获取配置
+    collector_config = get_collector_config()
+    output_config = get_output_config()
+    
+    cache_file = output_config.get("cache_file", "/tmp/collector_output.json")
+    history_file = output_config.get("history_file", "/tmp/collector_url_history.json")
+    trends_file = output_config.get("trends_file", "/tmp/collector_trends_history.json")
+    cache_ttl = collector_config.get("cache_ttl", 1800)
+    history_days = collector_config.get("history_days", 7)
+    trends_days = collector_config.get("trends_days", 3)
+    query_timeout = collector_config.get("query_timeout", 60)
 
-    Returns:
-        如果缓存存在且未过期，返回缓存字典；否则返回 None。
-    """
-    if not os.path.exists(cache_file):
-        return None
+    # 快速路径: 缓存复用
+    if os.path.exists(cache_file):
+        age = time.time() - os.path.getmtime(cache_file)
+        if age < cache_ttl:
+            logger.info(f"使用缓存数据 ({age:.0f}s 前)")
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+            print(json.dumps(cached, ensure_ascii=False))
+            sys.exit(0)
 
-    age = time.time() - os.path.getmtime(cache_file)
-    if age >= cache_ttl:
-        return None
+    ts = datetime.now().isoformat()
+    logger.info(f"v6 开始采集 {ts}")
 
-    logger.info(f"使用缓存数据 ({age:.0f}s 前)")
-    with open(cache_file, "r", encoding="utf-8") as f:
-        return json.load(f)
+    # 加载历史
+    url_history = load_url_history(history_file, history_days)
+    trends_history = load_trends_history(trends_file, trends_days)
+    logger.info(f"历史URL: {len(url_history)}, 历史趋势词: {len(trends_history)}")
 
-
-def _collect_all(query_timeout: int) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
-    """执行所有采集器，收集多源数据。
-
-    对每个采集器使用独立的 ThreadPoolExecutor 进行超时控制。
-
-    Args:
-        query_timeout: 每个采集器的超时秒数。
-
-    Returns:
-        (all_data, source_counts) 二元组：
-        - all_data: 所有采集器返回的数据条目列表。
-        - source_counts: 每个采集器的名称到条目数的映射。
-    """
     all_data: List[Dict[str, Any]] = []
     source_counts: Dict[str, int] = {}
 
+    # 采集所有源
     collectors = [
         ("Exa", collect_exa),
         ("GitHub", collect_github),
@@ -92,36 +96,6 @@ def _collect_all(query_timeout: int) -> Tuple[List[Dict[str, Any]], Dict[str, in
             elapsed = time.time() - t0
             logger.warning(f"{name} 失败 ({elapsed:.1f}s): {e}")
             source_counts[name.lower()] = 0
-
-    return all_data, source_counts
-
-
-def _process_data(
-    all_data: List[Dict[str, Any]],
-    url_history: Dict[str, str],
-    trends_history: Dict[str, str],
-    history_file: str,
-    trends_file: str,
-    history_days: int,
-    trends_days: int,
-) -> Dict[str, Any]:
-    """处理数据：去重、趋势检测、跨源聚类、分类统计。
-
-    副作用：更新 url_history 和 trends_history 并持久化到磁盘。
-
-    Args:
-        all_data: 原始采集数据条目列表。
-        url_history: URL 历史字典（url -> 日期）。
-        trends_history: 趋势词历史字典（关键词 -> 首次出现日期）。
-        history_file: URL 历史持久化文件路径。
-        trends_file: 趋势历史持久化文件路径。
-        history_days: URL 历史保留天数。
-        trends_days: 趋势历史保留天数。
-
-    Returns:
-        包含所有处理结果的输出字典。
-    """
-    ts = datetime.now().isoformat()
 
     # 去噪 + 语义去重
     merged = dedup_and_filter(all_data, url_history)
@@ -151,11 +125,12 @@ def _process_data(
             url_history[item["url"]] = today
     save_url_history(history_file, url_history)
 
-    return {
+    # 输出
+    output = {
         "collected_at": ts,
         "date": today,
         "total_items": len(merged),
-        "source_counts": {},
+        "source_counts": source_counts,
         "category_counts": dict(category_counts),
         "trend_momentum": {
             "continuing": list(continuing_trends)[:15],
@@ -165,87 +140,10 @@ def _process_data(
         "items": merged,
     }
 
-
-def _save_output(output: Dict[str, Any], cache_file: str) -> None:
-    """保存输出到缓存文件和 stdout。
-
-    Args:
-        output: 要保存的输出字典。
-        cache_file: 缓存文件路径。
-    """
     with open(cache_file, "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False)
 
     print(json.dumps(output, ensure_ascii=False))
-
-
-def main() -> None:
-    """主入口函数 — 协调子流程。
-
-    流程：
-    1. 校验必需的环境变量
-    2. 加载配置
-    3. 确保缓存目录存在
-    4. 尝试加载缓存（快速路径）
-    5. 加载历史数据
-    6. 采集多源数据
-    7. 处理数据（去重、趋势、聚类）
-    8. 保存输出
-    """
-    # 校验必需环境变量
-    from src.utils.security import get_api_key
-
-    get_api_key("EXA_API_KEY", required=True)
-
-    # 获取配置
-    collector_config = get_collector_config()
-    output_config = get_output_config()
-
-    cache_file = output_config.get("cache_file", ".cache/collector_output.json")
-    history_file = output_config.get("history_file", ".cache/collector_url_history.json")
-    trends_file = output_config.get("trends_file", ".cache/collector_trends_history.json")
-    cache_ttl = collector_config.get("cache_ttl", 1800)
-    history_days = collector_config.get("history_days", 7)
-    trends_days = collector_config.get("trends_days", 3)
-    query_timeout = collector_config.get("query_timeout", 60)
-
-    # 确保缓存目录存在
-    cache_dir = os.path.dirname(cache_file)
-    if cache_dir:
-        os.makedirs(cache_dir, exist_ok=True)
-
-    # 快速路径: 缓存复用
-    cached = _load_cache(cache_file, cache_ttl)
-    if cached is not None:
-        print(json.dumps(cached, ensure_ascii=False))
-        sys.exit(0)
-
-    ts = datetime.now().isoformat()
-    logger.info(f"v6 开始采集 {ts}")
-
-    # 加载历史
-    url_history = load_url_history(history_file, history_days)
-    trends_history = load_trends_history(trends_file, trends_days)
-    logger.info(f"历史URL: {len(url_history)}, 历史趋势词: {len(trends_history)}")
-
-    # 采集所有源
-    all_data, source_counts = _collect_all(query_timeout)
-
-    # 处理数据
-    output = _process_data(
-        all_data,
-        url_history,
-        trends_history,
-        history_file,
-        trends_file,
-        history_days,
-        trends_days,
-    )
-    # 注入 source_counts（_process_data 无法访问）
-    output["source_counts"] = source_counts
-
-    # 保存输出
-    _save_output(output, cache_file)
 
 
 if __name__ == "__main__":
